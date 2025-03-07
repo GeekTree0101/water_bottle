@@ -77,66 +77,109 @@ class WaterBottlePainter extends CustomPainter {
   final List<Bubble> bubbles;
 
   /// Water level, 0 = no water, 1 = full water
-  final waterLevel;
+  final double waterLevel;
 
   /// Bottle color
-  final bottleColor;
+  final Color bottleColor;
 
   /// Bottle cap color
-  final capColor;
+  final Color capColor;
 
-  WaterBottlePainter(
-      {Listenable? repaint,
-      required this.waves,
-      required this.bubbles,
-      required this.waterLevel,
-      required this.bottleColor,
-      required this.capColor})
-      : super(repaint: repaint);
+  WaterBottlePainter({
+    Listenable? repaint,
+    required this.waves,
+    required this.bubbles,
+    required this.waterLevel,
+    required this.bottleColor,
+    required this.capColor,
+  }) : super(repaint: repaint);
 
   @override
   void paint(Canvas canvas, Size size) {
-    {
-      final paint = Paint();
-      paint.color = bottleColor;
-      paint.style = PaintingStyle.stroke;
-      paint.strokeWidth = 3;
-      paintEmptyBottle(canvas, size, paint);
+    final bottlePaint = Paint()
+      ..color = bottleColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    paintEmptyBottle(canvas, size, bottlePaint);
+
+    final maskPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    canvas.saveLayer(rect, maskPaint);
+    paintBottleMask(canvas, size, maskPaint);
+
+    final wavesPaint = Paint()
+      ..blendMode = BlendMode.srcIn
+      ..style = PaintingStyle.fill;
+    for (var wave in waves) {
+      final bounds = wave.svgData.getBounds();
+      final desiredW = 15 * size.width;
+      final desiredH = 0.1 * size.height;
+      final translateRange = desiredW - size.width;
+      final scaleX = desiredW / bounds.width;
+      final scaleY = desiredH / bounds.height;
+      final translateX = -wave.offset * translateRange;
+      final waterRange = size.height + desiredH;
+      final translateY = (1.0 - waterLevel) * waterRange - desiredH;
+      final transform = Matrix4.identity()
+        ..translate(translateX, translateY)
+        ..scale(scaleX, scaleY);
+      wavesPaint.color = wave.color;
+      canvas.drawPath(wave.svgData.transform(transform.storage), wavesPaint);
+
+      if (wave == waves.last) {
+        final gap = size.height - desiredH - translateY;
+        if (gap > 0) {
+          canvas.drawRect(
+              Rect.fromLTWH(0, desiredH + translateY, size.width, size.height),
+              wavesPaint);
+        }
+      }
     }
-    {
-      final paint = Paint();
-      paint.color = Colors.white;
-      paint.style = PaintingStyle.fill;
-      final rect = Rect.fromLTRB(0, 0, size.width, size.height);
-      canvas.saveLayer(rect, paint);
-      paintBottleMask(canvas, size, paint);
+
+    final bubblesPaint = Paint()
+      ..blendMode = BlendMode.srcATop
+      ..style = PaintingStyle.fill;
+    for (var bubble in bubbles) {
+      bubblesPaint.color = bubble.color;
+      final offset = Offset(
+          bubble.x * size.width, (bubble.y + 1.0 - waterLevel) * size.height);
+      final radius = bubble.size * math.min(size.width, size.height);
+      canvas.drawCircle(offset, radius, bubblesPaint);
     }
-    {
-      final paint = Paint();
-      paint.blendMode = BlendMode.srcIn;
-      paint.style = PaintingStyle.fill;
-      paintWaves(canvas, size, paint);
-    }
-    {
-      final paint = Paint();
-      paint.blendMode = BlendMode.srcATop;
-      paint.style = PaintingStyle.fill;
-      paintBubbles(canvas, size, paint);
-    }
-    {
-      final paint = Paint();
-      paint.blendMode = BlendMode.srcATop;
-      paint.style = PaintingStyle.fill;
-      paintGlossyOverlay(canvas, size, paint);
-    }
+
+    final glossyPaint = Paint()
+      ..blendMode = BlendMode.srcATop
+      ..style = PaintingStyle.fill;
+    glossyPaint.color = Colors.white.withAlpha(20);
+    canvas.drawRect(
+        Rect.fromLTWH(0, 0, size.width * 0.5, size.height), glossyPaint);
+    glossyPaint.color = Colors.white.withAlpha(80);
+    canvas.drawRect(
+        Rect.fromLTWH(size.width * 0.9, 0, size.width * 0.05, size.height),
+        glossyPaint);
+    final rectGradient = Offset.zero & size;
+    final gradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.topRight,
+      colors: [
+        Colors.white.withAlpha(180),
+        Colors.white.withAlpha(0),
+      ],
+    ).createShader(rectGradient);
+    glossyPaint
+      ..shader = gradient
+      ..color = Colors.white;
+    canvas.drawRect(rectGradient, glossyPaint);
+
     canvas.restore();
-    {
-      final paint = Paint();
-      paint.blendMode = BlendMode.srcATop;
-      paint.style = PaintingStyle.fill;
-      paint.color = capColor;
-      paintCap(canvas, size, paint);
-    }
+
+    final capPaint = Paint()
+      ..blendMode = BlendMode.srcATop
+      ..style = PaintingStyle.fill
+      ..color = capColor;
+    paintCap(canvas, size, capPaint);
   }
 
   void paintEmptyBottle(Canvas canvas, Size size, Paint paint) {
@@ -165,65 +208,6 @@ class WaterBottlePainter extends CustomPainter {
         paint);
   }
 
-  void paintWaves(Canvas canvas, Size size, Paint paint) {
-    for (var wave in waves) {
-      paint.color = wave.color;
-      final transform = Matrix4.identity();
-      final desiredW = 15 * size.width;
-      final desiredH = 0.1 * size.height;
-      final translateRange = desiredW - size.width;
-      final scaleX = desiredW / wave.svgData.getBounds().width;
-      final scaleY = desiredH / wave.svgData.getBounds().height;
-      final translateX = -wave.offset * translateRange;
-      final waterRange = size.height +
-          desiredH; // 0 = no water = size.height; 1 = full water = -size.width
-      final translateY = (1.0 - waterLevel) * waterRange - desiredH;
-      transform.translate(translateX, translateY);
-      transform.scale(scaleX, scaleY);
-      canvas.drawPath(wave.svgData.transform(transform.storage), paint);
-      if (waves.indexOf(wave) != waves.length - 1) {
-        continue;
-      }
-      final gap = size.height - desiredH - translateY;
-      if (gap > 0) {
-        canvas.drawRect(
-            Rect.fromLTRB(0, desiredH + translateY, size.width, size.height),
-            paint);
-      }
-    }
-  }
-
-  void paintBubbles(Canvas canvas, Size size, Paint paint) {
-    for (var bubble in bubbles) {
-      paint.color = bubble.color;
-      final offset = Offset(
-          bubble.x * size.width, (bubble.y + 1.0 - waterLevel) * size.height);
-      final radius = bubble.size * math.min(size.width, size.height);
-      canvas.drawCircle(offset, radius, paint);
-    }
-  }
-
-  void paintGlossyOverlay(Canvas canvas, Size size, Paint paint) {
-    paint.color = Colors.white.withAlpha(20);
-    canvas.drawRect(Rect.fromLTRB(0, 0, size.width * 0.5, size.height), paint);
-    paint.color = Colors.white.withAlpha(80);
-    canvas.drawRect(
-        Rect.fromLTRB(size.width * 0.9, 0, size.width * 0.95, size.height),
-        paint);
-    final rect = Offset.zero & size;
-    final gradient = LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.topRight,
-      colors: [
-        Colors.white.withAlpha(180),
-        Colors.white.withAlpha(0),
-      ],
-    ).createShader(rect);
-    paint.color = Colors.white;
-    paint.shader = gradient;
-    canvas.drawRect(Rect.fromLTRB(0, 0, size.width, size.height), paint);
-  }
-
   void paintCap(Canvas canvas, Size size, Paint paint) {
     final capTop = 0.0;
     final capBottom = size.width * 0.2;
@@ -244,5 +228,11 @@ class WaterBottlePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(WaterBottlePainter oldDelegate) => true;
+  bool shouldRepaint(WaterBottlePainter oldDelegate) {
+    return waterLevel != oldDelegate.waterLevel ||
+        bottleColor != oldDelegate.bottleColor ||
+        capColor != oldDelegate.capColor ||
+        waves != oldDelegate.waves ||
+        bubbles != oldDelegate.bubbles;
+  }
 }
