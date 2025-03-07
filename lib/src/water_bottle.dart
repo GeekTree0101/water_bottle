@@ -229,10 +229,6 @@ class WaterBottlePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(WaterBottlePainter oldDelegate) {
-    return waterLevel != oldDelegate.waterLevel ||
-        bottleColor != oldDelegate.bottleColor ||
-        capColor != oldDelegate.capColor ||
-        waves != oldDelegate.waves ||
-        bubbles != oldDelegate.bubbles;
+    return true;
   }
 }
