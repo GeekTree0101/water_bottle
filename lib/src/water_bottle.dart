@@ -32,9 +32,6 @@ class WaterBottleState extends State<WaterBottle>
   void initState() {
     super.initState();
     initWater(widget.waterColor, this);
-    waves.first.animation.addListener(() {
-      setState(() {});
-    });
   }
 
   @override
@@ -51,14 +48,20 @@ class WaterBottleState extends State<WaterBottle>
       children: [
         AspectRatio(
           aspectRatio: 1 / 1,
-          child: CustomPaint(
-            painter: WaterBottlePainter(
-              waves: waves,
-              bubbles: bubbles,
-              waterLevel: waterLevel,
-              bottleColor: widget.bottleColor,
-              capColor: widget.capColor,
-            ),
+          child: AnimatedBuilder(
+            animation: waves.first.animation,
+            builder: (context, child) {
+              return CustomPaint(
+                painter: WaterBottlePainter(
+                  waves: waves,
+                  bubbles: bubbles,
+                  waterLevel: waterLevel,
+                  bottleColor: widget.bottleColor,
+                  capColor: widget.capColor,
+                ),
+              );
+            },
+            child: Container(),
           ),
         ),
       ],

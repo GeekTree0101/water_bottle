@@ -30,9 +30,6 @@ class TriangularBottleState extends State<TriangularBottle>
   void initState() {
     super.initState();
     initWater(widget.waterColor, this);
-    waves.first.animation.addListener(() {
-      setState(() {});
-    });
   }
 
   @override
@@ -49,14 +46,20 @@ class TriangularBottleState extends State<TriangularBottle>
       children: [
         AspectRatio(
           aspectRatio: 1 / 1,
-          child: CustomPaint(
-            painter: TriangularBottleStatePainter(
-              waves: waves,
-              bubbles: bubbles,
-              waterLevel: waterLevel,
-              bottleColor: widget.bottleColor,
-              capColor: widget.capColor,
-            ),
+          child: AnimatedBuilder(
+            animation: waves.first.animation,
+            builder: (context, child) {
+              return CustomPaint(
+                painter: TriangularBottleStatePainter(
+                  waves: waves,
+                  bubbles: bubbles,
+                  waterLevel: waterLevel,
+                  bottleColor: widget.bottleColor,
+                  capColor: widget.capColor,
+                ),
+              );
+            },
+            child: Container(),
           ),
         ),
       ],

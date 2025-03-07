@@ -35,9 +35,6 @@ class SphericalBottleState extends State<SphericalBottle>
   void initState() {
     super.initState();
     initWater(widget.waterColor, this);
-    waves.first.animation.addListener(() {
-      setState(() {});
-    });
   }
 
   @override
@@ -54,14 +51,20 @@ class SphericalBottleState extends State<SphericalBottle>
       children: [
         AspectRatio(
           aspectRatio: 1 / 1,
-          child: CustomPaint(
-            painter: SphericalBottlePainter(
-              waves: waves,
-              bubbles: bubbles,
-              waterLevel: waterLevel,
-              bottleColor: widget.bottleColor,
-              capColor: widget.capColor,
-            ),
+          child: AnimatedBuilder(
+            animation: waves.first.animation,
+            builder: (context, child) {
+              return CustomPaint(
+                painter: SphericalBottlePainter(
+                  waves: waves,
+                  bubbles: bubbles,
+                  waterLevel: waterLevel,
+                  bottleColor: widget.bottleColor,
+                  capColor: widget.capColor,
+                ),
+              );
+            },
+            child: Container(),
           ),
         ),
       ],
